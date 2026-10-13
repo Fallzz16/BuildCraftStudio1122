@@ -29,6 +29,9 @@ public final class StudioGui extends GuiScreen {
     private int rightStartX,rightStartY;
     private boolean rightDrag;
     private StudioPicking hover;
+    private int hoverXCache=Integer.MIN_VALUE,hoverYCache=Integer.MIN_VALUE;
+    private long hoverDocRevision=-1,hoverMatrixRevision=-1;
+    private int hoverPlaneOffset=Integer.MIN_VALUE;
     private BlockPos selected;
     public StudioGui(StudioSession s) { this.s=s; }
     public BlockPos getSelected() {return selected;}
@@ -50,7 +53,13 @@ public final class StudioGui extends GuiScreen {
     private int barTop() {return height-27;}
     @Override public void drawScreen(int mx,int my,float partial) {
         mouseXNow=mx;mouseYNow=my;
-        hover=StudioPicking.at(mc,s,mx,my,width,height);
+        long modelRevision=s.document.revision(),projectionRevision=StudioPicking.matrixRevision();
+        if(hover==null || mx!=hoverXCache || my!=hoverYCache || modelRevision!=hoverDocRevision
+                || projectionRevision!=hoverMatrixRevision || hoverPlaneOffset!=s.planeOffset) {
+            hover=StudioPicking.at(mc,s,mx,my,width,height);
+            hoverXCache=mx;hoverYCache=my;hoverDocRevision=modelRevision;
+            hoverMatrixRevision=projectionRevision;hoverPlaneOffset=s.planeOffset;
+        }
         drawRect(4,4,191,22,0xA5101C23);
         fontRenderer.drawStringWithShadow("BUILDCRAFT | M1.2 | " +(s.walkMode?"STEVE":"CAMERA"),9,9,0xF4F6F8);
         drawRect(width-91,4,width-5,22,confirming?0xD0A04D16:0xCC287359);
