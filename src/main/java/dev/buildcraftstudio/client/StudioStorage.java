@@ -22,6 +22,15 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 /** Project data only; does not store unsafe TileEntity NBT or modify the world. */
 public final class StudioStorage {
     private StudioStorage() { }
+    private static volatile String failure="Nenhuma falha registrada";
+    public static String lastError() {return failure;}
+    private static boolean fail(String stage,File location,Exception exception) {
+        failure=stage+": "+exception.getClass().getSimpleName() +
+                (exception.getMessage()==null?"": " ("+exception.getMessage()+")");
+        org.apache.logging.log4j.LogManager.getLogger("BuildCraftStudio").error(
+                "Erro ao salvar BuildCraft Studio em {}",location.getAbsolutePath(),exception);
+        return false;
+    }
     private static File file(Minecraft mc) {
         String world = mc.getIntegratedServer() == null ? "not_singleplayer" : mc.getIntegratedServer().getFolderName();
         world = world.replaceAll("[^a-zA-Z0-9_.-]", "_");
@@ -60,7 +69,8 @@ public final class StudioStorage {
     public static boolean save(Minecraft mc, BuildDocument doc) {
         if (mc.getIntegratedServer() == null) return false;
         File main = file(mc), tmp = new File(main.getPath()+".tmp"), backup=new File(main.getPath()+".bak");
-        if (!main.getParentFile().isDirectory() && !main.getParentFile().mkdirs()) return false;
+        if (!main.getParentFile().isDirectory() && !main.getParentFile().mkdirs())
+            return fail("Criar pasta",main,new IOException("Sem permissão em "+main.getParentFile()));
         NBTTagCompound data = new NBTTagCompound();
         data.setInteger("schema",1);
         data.setInteger("ox",doc.origin().getX());
@@ -87,7 +97,8 @@ public final class StudioStorage {
             try { Files.move(tmp.toPath(),main.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING); }
             catch(AtomicMoveNotSupportedException ex) { Files.move(tmp.toPath(),main.toPath(),StandardCopyOption.REPLACE_EXISTING); }
             doc.saved();
+            failure="Nenhuma falha registrada";
             return true;
-        } catch(IOException ex) { return false; }
+        } catch(Exception ex) { return fail("Escrever arquivo",main,ex); }
     }
 }

@@ -10,86 +10,124 @@ import java.util.Map;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.inventory.GuiContainerCreative;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
-/** Non-pausing mouse-controlled building canvas. No inventory or game clicks leak through. */
+/** Compact construction interface using the real player hotbar and Creative inventory. */
 public final class StudioGui extends GuiScreen {
     private final StudioSession s;
-    private int lastMouseX=-1, lastMouseY=-1;
+    private int lastMouseX=-1,lastMouseY=-1;
     private boolean confirming;
-    private int draftRevision;
-    private int confirmedRevision=-1;
+    private int revision,confirmedRevision=-1;
     private int mouseXNow,mouseYNow;
     private StudioPicking hover;
     private BlockPos selected;
     public StudioGui(StudioSession s) { this.s=s; }
-    public BlockPos getSelected() { return selected; }
-    public int getHoverX() { return mouseXNow; }
-    public int getHoverY() { return mouseYNow; }
-    @Override public boolean doesGuiPauseGame() { return false; }
-    @Override public void drawScreen(int mx,int my,float ticks) {
+    public BlockPos getSelected() {return selected;}
+    public int getHoverX() {return mouseXNow;}
+    public int getHoverY() {return mouseYNow;}
+    public IBlockState currentBlock() {
+        ItemStack stack=mc.player==null?ItemStack.EMPTY:mc.player.inventory.getCurrentItem();
+        if(stack.isEmpty()) return null;
+        Item item=stack.getItem();
+        if(!(item instanceof ItemBlock)) return null;
+        Block block=((ItemBlock)item).getBlock();
+        if(!BuildPalette.isSafe(block)) return null;
+        try {return block.getStateFromMeta(((ItemBlock)item).getMetadata(stack.getMetadata()));}
+        catch(RuntimeException ex) {return null;}
+    }
+    @Override public boolean doesGuiPauseGame() {return false;}
+    private int barLeft() {return width/2-99;}
+    private int barTop() {return height-27;}
+    @Override public void drawScreen(int mx,int my,float partial) {
         mouseXNow=mx;mouseYNow=my;
         hover=StudioPicking.at(mc,s,mx,my,width,height);
-        drawRect(4,4,width-4,30,0xB6132029);
-        fontRenderer.drawStringWithShadow("BUILDCRAFT STUDIO  |  M1",12,12,0xEDF5F7);
-        drawRect(width-100,6,width-8,27,confirming?0xD0A04D16:0xCC386D52);
-        drawCenteredString(fontRenderer,confirming?"CONFIRMAR":"FINALIZAR",width-54,13,0xFFFFFF);
-        drawRect(4,height-51,width-4,height-4,0xB6132029);
-        int shown=Math.min(BuildPalette.SAFE.size(),9);
-        int center=width/2-(shown*37)/2;
-        for(int i=0;i<shown;i++) {
-            int x=center+i*37;
-            drawRect(x,height-46,x+33,height-12,i==s.slot?0xE03A8B65:0xCC344351);
-            String name=BuildPalette.SAFE.get(i).getLocalizedName();
-            drawCenteredString(fontRenderer,""+(i+1),x+16,height-44,0xFFE9D7);
-            String abbrev=name.length()>4?name.substring(0,4):name;
-            drawCenteredString(fontRenderer,abbrev,x+16,height-29,0xFFFFFF);
+        drawRect(4,4,146,22,0xA5101C23);
+        fontRenderer.drawStringWithShadow("BUILDCRAFT  |  M1.1",9,9,0xF4F6F8);
+        drawRect(width-91,4,width-5,22,confirming?0xD0A04D16:0xCC287359);
+        drawCenteredString(fontRenderer,confirming?"CONFIRMAR":"FINALIZAR",width-48,9,0xFFFFFF);
+        drawRect(width-149,4,width-95,22,0xCC283845);
+        drawCenteredString(fontRenderer,"ITENS E",width-122,9,0xF3F7FF);
+
+        // True 9-slot player hotbar, without the oversized labels of v0.1.0.
+        int x0=barLeft(),y0=barTop();
+        drawRect(x0-3,y0-3,x0+201,y0+22,0xB314232D);
+        for(int i=0;i<9;i++) {
+            int x=x0+i*22;
+            drawRect(x,y0,x+20,y0+20,i==mc.player.inventory.currentItem?0xD06A956C:0xAC34414A);
+            ItemStack item=mc.player.inventory.getStackInSlot(i);
+            if(!item.isEmpty()) {
+                mc.getRenderItem().renderItemAndEffectIntoGUI(item,x+2,y0+2);
+                mc.getRenderItem().renderItemOverlayIntoGUI(fontRenderer,item,x+2,y0+2,null);
+            }
         }
-        String status=s.notice;
-        if (hover!=null) status+=" | "+hover.reason;
-        drawRect(4,33,Math.min(width-4,9+fontRenderer.getStringWidth(status)),46,0xAA132029);
-        fontRenderer.drawStringWithShadow(status,7,36,0xE8EDF0);
-        String tips="RMB arrastar: orbitar  |  MMB: pan  |  scroll: zoom  |  Shift+scroll: plano  |  PgUp/PgDn: altura  |  Ctrl+Z/Y: histórico  |  B/Esc: sair";
-        fontRenderer.drawStringWithShadow(tips,10,height-61,0xD2DDDF);
-        fontRenderer.drawStringWithShadow("Blocos: "+s.document.blocks().size()+"/512 | Altura: "+s.planeOffset,10,height-76,0xE0E8EF);
+        String reason=hover==null?"":hover.reason;
+        String status=s.notice+(reason.isEmpty()?"":" | "+reason);
+        String trimmed=fontRenderer.trimStringToWidth(status,width-20);
+        drawRect(4,26,Math.min(width-4,12+fontRenderer.getStringWidth(trimmed)),40,0xB0182731);
+        fontRenderer.drawStringWithShadow(trimmed,8,29,0xEDF1F3);
+        String tips="RMB: orbitar | MMB: mover | scroll: zoom | Shift+scroll: altura | E: inventário | G: grade | B: sair";
+        String fitted=fontRenderer.trimStringToWidth(tips,width-16);
+        fontRenderer.drawStringWithShadow(fitted,8,height-42,0xE7EDEF);
+        if(hover!=null && hover.local!=null) {
+            BlockPos p=s.document.origin().add(hover.local);
+            String pos=p.getX()+", "+p.getY()+", "+p.getZ()+"  |  "+s.document.blocks().size()+"/512";
+            drawRect(4,height-65,12+fontRenderer.getStringWidth(pos),height-52,0xA8182731);
+            fontRenderer.drawStringWithShadow(pos,8,height-63,0xE5EBED);
+        }
+        if(currentBlock()==null) {
+            String hint="Selecione um bloco compatível na hotbar. E abre todos os itens Criativos.";
+            String compact=fontRenderer.trimStringToWidth(hint,width-20);
+            drawRect(4,44,12+fontRenderer.getStringWidth(compact),57,0xAC623F2F);
+            fontRenderer.drawStringWithShadow(compact,8,47,0xFFE2A9);
+        }
+    }
+    private void openCreative() {
+        if(!mc.player.capabilities.isCreativeMode) {
+            s.notice="Inventário Criativo disponível apenas no Criativo"; return;
+        }
+        s.inventoryOpen=true;
+        mc.displayGuiScreen(new GuiContainerCreative(mc.player));
     }
     @Override protected void mouseClicked(int mx,int my,int button) throws IOException {
         lastMouseX=mx;lastMouseY=my;
         if(button!=0)return;
-        if(my<31 && mx>width-105) { finish(); return; }
-        int shown=Math.min(BuildPalette.SAFE.size(),9);
-        int center=width/2-(shown*37)/2;
-        if(my>=height-48 && my<=height-10 && mx>=center && mx<center+shown*37) {
-            s.slot=(mx-center)/37; confirming=false;return;
+        if(my>=4 && my<23 && mx>=width-91) {finish();return;}
+        if(my>=4 && my<23 && mx>=width-149 && mx<width-94) {openCreative();return;}
+        if(my>=barTop()-3 && my<=barTop()+22 && mx>=barLeft() && mx<barLeft()+198) {
+            mc.player.inventory.currentItem=Math.min(8,(mx-barLeft())/22);
+            confirming=false;
+            return;
         }
-        if(my<78 || my>height-78) return;
+        if(my<60 || my>height-47)return;
+        StudioPicking hit=StudioPicking.at(mc,s,mx,my,width,height);
         if(GuiScreen.isShiftKeyDown()) {
-            StudioPicking pick=StudioPicking.at(mc,s,mx,my,width,height);
-            if(pick.hitExisting!=null && s.document.blocks().containsKey(pick.hitExisting)) {
-                selected=pick.hitExisting;
-                s.notice="Bloco selecionado. Pressione Delete para remover.";
-            } else s.notice="Nenhum bloco virtual nessa posição";
+            if(hit.hitExisting!=null && s.document.blocks().containsKey(hit.hitExisting)) {
+                selected=hit.hitExisting;s.notice="Bloco selecionado: Delete para remover";
+            } else s.notice="Nenhum bloco virtual sob o cursor";
         } else {
-            StudioPicking pick=StudioPicking.at(mc,s,mx,my,width,height);
-            if(!pick.valid) { s.notice=pick.reason; return; }
-            IBlockState state=BuildPalette.SAFE.get(s.slot).getDefaultState();
-            if(s.document.edit(pick.local,state)) {s.notice="Bloco adicionado ao projeto virtual"; changed();}
-            else s.notice="Limite do projeto atingido ou posição inválida";
+            if(!hit.valid) {s.notice=hit.reason;return;}
+            IBlockState state=currentBlock();
+            if(state==null) {s.notice="Escolha um bloco suportado na hotbar (E abre Criativo)";return;}
+            if(s.document.edit(hit.local,state)) {s.notice="Bloco posicionado";changed();}
+            else s.notice="Posição inválida ou limite de peças atingido";
         }
     }
-    private void changed() { draftRevision++; confirming=false; }
+    private void changed() {revision++;confirming=false;}
     @Override protected void mouseClickMove(int mx,int my,int button,long elapsed) {
-        if(lastMouseX<0) { lastMouseX=mx;lastMouseY=my;return; }
-        int dx=mx-lastMouseX,dy=my-lastMouseY;
-        lastMouseX=mx;lastMouseY=my;
+        if(lastMouseX<0) {lastMouseX=mx;lastMouseY=my;return;}
+        int dx=mx-lastMouseX,dy=my-lastMouseY;lastMouseX=mx;lastMouseY=my;
         if(button==1) {
-            double oldYaw=s.yaw,oldPitch=s.pitch;
-            s.yaw=(s.yaw+dx*0.42)%360;
+            double beforeYaw=s.yaw,beforePitch=s.pitch;
+            s.yaw=(s.yaw+dx*.42)%360;
             s.pitch=EditorMath.clamp(s.pitch+dy*.33,-85,85);
-            if(!s.updateCamera(mc)) {s.yaw=oldYaw;s.pitch=oldPitch;s.notice="Limite de chunks carregados";}
+            if(!s.updateCamera(mc)) {s.yaw=beforeYaw;s.pitch=beforePitch;s.notice="Limite de chunks carregados";}
         } else if(button==2) {
             double scale=s.distance*.0025;
             double a=Math.toRadians(s.yaw),p=Math.toRadians(s.pitch);
@@ -98,65 +136,60 @@ public final class StudioGui extends GuiScreen {
             s.changeFocus(mc,s.focus.subtract(right.scale(dx*scale)).add(up.scale(dy*scale)));
         }
     }
-    @Override protected void mouseReleased(int mx,int my,int button) {
-        lastMouseX=-1;lastMouseY=-1;
-    }
+    @Override protected void mouseReleased(int mx,int my,int button) {lastMouseX=-1;lastMouseY=-1;}
     @Override public void handleMouseInput() throws IOException {
         super.handleMouseInput();
         int wheel=Mouse.getEventDWheel();
         if(wheel!=0) {
             if(GuiScreen.isShiftKeyDown()) s.planeOffset=Math.max(-32,Math.min(31,s.planeOffset+Integer.signum(wheel)));
             else {
-                double old=s.distance;
-                s.distance=EditorMath.clamp(s.distance*(wheel>0?.88:1.13),3.5,36);
+                double old=s.distance;s.distance=EditorMath.clamp(s.distance*(wheel>0?.88:1.13),3.5,36);
                 if(!s.updateCamera(mc)) {s.distance=old;s.notice="Limite de chunks carregados";}
             }
         }
     }
     @Override protected void keyTyped(char ch,int key) throws IOException {
-        if(key==Keyboard.KEY_ESCAPE || key==Keyboard.KEY_B) { mc.displayGuiScreen(null);return; }
+        if(key==Keyboard.KEY_ESCAPE || key==Keyboard.KEY_B) {mc.displayGuiScreen(null);return;}
+        if(key==Keyboard.KEY_E) {openCreative();return;}
+        if(key==Keyboard.KEY_G) {s.showGrid=!s.showGrid;s.notice=s.showGrid?"Grade visível":"Grade oculta";return;}
         if(key==Keyboard.KEY_PRIOR) s.planeOffset=Math.min(31,s.planeOffset+1);
         else if(key==Keyboard.KEY_NEXT) s.planeOffset=Math.max(-32,s.planeOffset-1);
-        else if(GuiScreen.isCtrlKeyDown() && key==Keyboard.KEY_Z) { if(s.document.undo()) {s.notice="Desfeito";changed();} }
-        else if(GuiScreen.isCtrlKeyDown() && key==Keyboard.KEY_Y) { if(s.document.redo()) {s.notice="Refeito";changed();} }
-        else if(key==Keyboard.KEY_DELETE && selected!=null) {
-            if(s.document.edit(selected,null)) {s.notice="Seleção removida";changed();}
-            selected=null;
-        }
-        else if(key>=Keyboard.KEY_1 && key<=Keyboard.KEY_9) s.slot=Math.min(BuildPalette.SAFE.size()-1,key-Keyboard.KEY_1);
-        else if(key==Keyboard.KEY_I) { s.yaw=45;s.pitch=35;s.updateCamera(mc); }
+        else if(GuiScreen.isCtrlKeyDown() && key==Keyboard.KEY_Z) {if(s.document.undo()){s.notice="Desfeito";changed();}}
+        else if(GuiScreen.isCtrlKeyDown() && key==Keyboard.KEY_Y) {if(s.document.redo()){s.notice="Refeito";changed();}}
+        else if(key==Keyboard.KEY_DELETE && selected!=null) {if(s.document.edit(selected,null)){s.notice="Excluído";changed();}selected=null;}
+        else if(key>=Keyboard.KEY_1 && key<=Keyboard.KEY_9) mc.player.inventory.currentItem=Math.min(8,key-Keyboard.KEY_1);
+        else if(key==Keyboard.KEY_I) {s.yaw=45;s.pitch=35;s.updateCamera(mc);}
         else if(key==Keyboard.KEY_T) {s.pitch=85;s.updateCamera(mc);}
         else if(key==Keyboard.KEY_O) {s.yaw=0;s.pitch=0;s.updateCamera(mc);}
         else if(key==Keyboard.KEY_P) {s.yaw=90;s.pitch=0;s.updateCamera(mc);}
         else if(key==Keyboard.KEY_S && GuiScreen.isCtrlKeyDown()) {
-            s.notice=StudioStorage.save(mc,s.document)?"Projeto salvo":"Falha ao salvar projeto";
+            s.notice=StudioStorage.save(mc,s.document)?"Projeto salvo": "Falha ao salvar: "+StudioStorage.lastError();
         }
     }
     private void finish() {
-        if(!mc.player.capabilities.isCreativeMode) {s.notice="M1: finalização somente no Criativo";return;}
+        if(!mc.player.capabilities.isCreativeMode) {s.notice="M1: finalizar somente no Criativo";return;}
         if(s.document.blocks().isEmpty()) {s.notice="Projeto vazio";return;}
         if(s.document.blocks().size()>128) {s.notice="M1: limite de 128 blocos por finalização";return;}
         int occupied=0;
         for(BlockPos local:s.document.blocks().keySet()) {
-            BlockPos world=s.document.origin().add(local);
-            if(!mc.world.isBlockLoaded(world)) {s.notice="Chunk indisponível: finalização bloqueada";return;}
-            if(!mc.world.isAirBlock(world))occupied++;
+            BlockPos pos=s.document.origin().add(local);
+            if(!mc.world.isBlockLoaded(pos)) {s.notice="Chunk não carregado: bloqueado";return;}
+            if(!mc.world.isAirBlock(pos)) occupied++;
         }
-        if(!confirming || confirmedRevision!=draftRevision) {
-            confirming=true;confirmedRevision=draftRevision;
-            s.notice="Confirme FINALIZAR novamente: "+occupied+" posições já contêm blocos reais!";
+        if(!confirming || confirmedRevision!=revision) {
+            confirming=true;confirmedRevision=revision;
+            s.notice="Clique CONFIRMAR: "+occupied+" blocos reais serão substituídos";
             return;
         }
         PlacePacket packet=new PlacePacket(mc.player.dimension);
         for(Map.Entry<BlockPos,IBlockState> e:s.document.blocks().entrySet()) {
-            BlockPos world=s.document.origin().add(e.getKey());
+            BlockPos p=s.document.origin().add(e.getKey());
             Block b=e.getValue().getBlock();
-            packet.add(world.getX(),world.getY(),world.getZ(),Block.getIdFromBlock(b),b.getMetaFromState(e.getValue()));
+            packet.add(p.getX(),p.getY(),p.getZ(),Block.getIdFromBlock(b),b.getMetaFromState(e.getValue()));
         }
-        if(!StudioStorage.save(mc,s.document)) {s.notice="§cSalvar falhou: operação cancelada";return;}
+        if(!StudioStorage.save(mc,s.document)){s.notice="§cFalha ao salvar: "+StudioStorage.lastError();return;}
         BuildCraftStudio.NETWORK.sendToServer(packet);
-        confirming=false;
-        s.notice="Pedido enviado; verifique o resultado no chat. Projeto mantido como backup.";
+        confirming=false;s.notice="Pedido enviado; confira o resultado no chat";
     }
-    @Override public void onGuiClosed() { StudioSession.stop(mc); }
+    @Override public void onGuiClosed() {if(!s.inventoryOpen)StudioSession.stop(mc);}
 }
