@@ -1,0 +1,71 @@
+name: BuildCraft Studio M1 - Forge 1.12.2
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'build.gradle'
+      - 'gradle.properties'
+      - 'settings.gradle'
+      - 'TEST-MATH.sh'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+      - name: Independent Java math tests
+        run: bash TEST-MATH.sh
+      - name: Download and verify Gradle 4.9
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/buildcraft-gradle"
+          cd "$RUNNER_TEMP/buildcraft-gradle"
+          if ! curl -fsSL --retry 3 --connect-timeout 30 https://downloads.gradle.org/distributions/gradle-4.9-bin.zip -o gradle.zip; then
+            curl -fsSL --retry 3 --connect-timeout 30 https://services.gradle.org/distributions/gradle-4.9-bin.zip -o gradle.zip
+          fi
+          echo 'e66e69dce8173dd2004b39ba93586a184628bc6c28461bc771d6835f7f9b0d28  gradle.zip' | sha256sum -c -
+          unzip -q gradle.zip
+          echo "$RUNNER_TEMP/buildcraft-gradle/gradle-4.9/bin" >> "$GITHUB_PATH"
+      - name: Build against real Forge APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --console=plain clean build 2>&1 | tee BUILD_LOG_CI.txt
+      - name: Inspect compiled mod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s build/libs/buildcraft-studio-forge1122-0.1.0.jar
+          jar tf build/libs/buildcraft-studio-forge1122-0.1.0.jar > JAR_CONTENTS_CI.txt
+          grep -Fxq 'mcmod.info' JAR_CONTENTS_CI.txt
+          grep -Fxq 'dev/buildcraftstudio/BuildCraftStudio.class' JAR_CONTENTS_CI.txt
+          sha256sum build/libs/buildcraft-studio-forge1122-0.1.0.jar > JAR_SHA256.txt
+      - name: Upload JAR on successful build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BuildCraft-Studio-M1-Forge1122
+          path: |
+            build/libs/buildcraft-studio-forge1122-0.1.0.jar
+            JAR_SHA256.txt
+          if-no-files-found: error
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BuildCraft-M1-Failure-Logs
+          path: |
+            BUILD_LOG_CI.txt
+            build/tmp/**
+          if-no-files-found: ignore
