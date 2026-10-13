@@ -139,7 +139,7 @@ public final class StudioSession {
             syncKey(mc.gameSettings.keyBindJump,true);
             syncKey(mc.gameSettings.keyBindSneak,true);
             Vec3d follow=new Vec3d(mc.player.posX,mc.player.posY+1.0,mc.player.posZ);
-            if (!changeFocus(mc,follow)) s.notice="Câmera no limite de alcance/chunks. Aproxime a visão.";
+            if (!changeFocus(mc,follow)) notice="Câmera no limite de alcance/chunks. Aproxime a visão.";
         } else {
             releaseMovementKeys(mc);
             double forwards=(Keyboard.isKeyDown(Keyboard.KEY_W)?1:0)-(Keyboard.isKeyDown(Keyboard.KEY_S)?1:0);
@@ -150,7 +150,7 @@ public final class StudioSession {
                 Vec3d forward=new Vec3d(-Math.sin(angle),0,Math.cos(angle));
                 Vec3d right=new Vec3d(Math.cos(angle),0,Math.sin(angle));
                 if (!changeFocus(mc,focus.add(forward.scale(forwards*speed)).add(right.scale(sides*speed)).add(new Vec3d(0,rise*speed,0))))
-                    s.notice="Movimento bloqueado: alcance ou chunk indisponível";
+                    notice="Movimento bloqueado: alcance ou chunk indisponível";
             }
         }
     }
