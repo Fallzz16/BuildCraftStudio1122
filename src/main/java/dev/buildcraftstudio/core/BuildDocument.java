@@ -16,6 +16,8 @@ public final class BuildDocument {
     private final Deque<Edit> redo = new ArrayDeque<>();
     private BlockPos origin;
     private boolean dirty;
+    private long revision;
+    public long revision() { return revision; }
 
     public BuildDocument(BlockPos origin) { this.origin = origin; }
     public BlockPos origin() { return origin; }
@@ -33,6 +35,7 @@ public final class BuildDocument {
         redo.clear();
         if (undo.size() > 1024) undo.removeLast();
         dirty = true;
+        revision++;
         return true;
     }
 
@@ -42,6 +45,7 @@ public final class BuildDocument {
         apply(edit.local, edit.before);
         redo.push(edit);
         dirty = true;
+        revision++;
         return true;
     }
 
@@ -51,6 +55,7 @@ public final class BuildDocument {
         apply(edit.local, edit.after);
         undo.push(edit);
         dirty = true;
+        revision++;
         return true;
     }
 
@@ -65,7 +70,7 @@ public final class BuildDocument {
 
     /** Loading from disk resets history; no partially reconstructed undo stack. */
     public void loadBlock(BlockPos local, IBlockState state) {
-        if (validLocal(local) && blocks.size() < MAX_PREVIEW_BLOCKS && state != null) blocks.put(local, state);
+        if (validLocal(local) && blocks.size() < MAX_PREVIEW_BLOCKS && state != null) { blocks.put(local, state); revision++; }
     }
 
     private static final class Edit {

@@ -3,9 +3,11 @@ package dev.buildcraftstudio.client;
 import dev.buildcraftstudio.core.BuildDocument;
 import dev.buildcraftstudio.core.BuildPalette;
 import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.SyncFailedException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -89,10 +91,21 @@ public final class StudioStorage {
         }
         data.setTag("blocks",list);
         try {
-            try(FileOutputStream out = new FileOutputStream(tmp)) {
-                CompressedStreamTools.writeCompressed(data,out);
-                out.getFD().sync();
+            // CompressedStreamTools.writeCompressed closes the passed stream.
+            // Serialize to memory first so it cannot close our real file descriptor
+            // before getFD().sync(). This fixes the old SyncFailedException on Windows.
+            ByteArrayOutputStream compressed=new ByteArrayOutputStream();
+            CompressedStreamTools.writeCompressed(data,compressed);
+            try(FileOutputStream out=new FileOutputStream(tmp)) {
+                out.write(compressed.toByteArray());
+                out.flush();
+                try {out.getFD().sync();}
+                catch (SyncFailedException unsupported) {
+                    org.apache.logging.log4j.LogManager.getLogger("BuildCraftStudio").warn(
+                        "Forced filesystem sync unsupported for {}; verifying save instead",tmp.getAbsolutePath());
+                }
             }
+            if(read(tmp) == null) throw new IOException("Falha ao verificar arquivo temporário antes de substituir projeto");
             if(main.exists() && read(main)!=null) Files.copy(main.toPath(),backup.toPath(),StandardCopyOption.REPLACE_EXISTING);
             try { Files.move(tmp.toPath(),main.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING); }
             catch(AtomicMoveNotSupportedException ex) { Files.move(tmp.toPath(),main.toPath(),StandardCopyOption.REPLACE_EXISTING); }

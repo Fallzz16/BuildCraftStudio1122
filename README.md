@@ -1,6 +1,6 @@
-# BuildCraft Studio — M1.1 — Precision and Creative UI (v0.1.1)
+# BuildCraft Studio — M1.2 — Precision and Creative UI (v0.1.2)
 
-**Status: v0.1.1 experimental; compilação com Forge real e teste no Minecraft ainda necessários.**
+**Status: v0.1.2 experimental; compilação com Forge real e teste no Minecraft ainda necessários.**
 
 Projeto novo e independente do IsoCraft Camera e do mod de terror. Objetivo: **editor virtual de casas e estruturas** para Minecraft **Forge 1.12.2**, compilação com **JDK 8 + Gradle 4.9**. Sem veículos, motores ou física própria.
 
@@ -10,7 +10,7 @@ Projeto novo e independente do IsoCraft Camera e do mod de terror. Objetivo: **e
 - A câmera usa uma entidade local como ponto de vista; arrastar com **botão direito** orbita, **botão do meio** desloca o foco e **scroll** controla o zoom. Os movimentos são restringidos a chunks carregados.
 - Clique esquerdo coloca um bloco **virtual**, **Shift+clique** seleciona o bloco virtual, `Delete` remove a seleção; `Ctrl+Z` desfaz e `Ctrl+Y` refaz.
 - Grade/nível virtual ajustável por `PageUp/PageDown` ou `Shift+scroll`. Raycast do cursor no plano ou na face de blocos virtuais. Ghost com contorno colorido, renderizado em lotes sem modificar chunks.
-- **Hotbar real e compacta**: ao entrar no editor, veja os mesmos nove espaços do jogador. `1–9` seleciona o item e `E` abre a tela vanilla do inventário Criativo (inclusive busca e todas as abas). Ao fechar, volta ao editor. O M1.1 **somente permite colocar os blocos da lista segura**, mesmo que outros apareçam no catálogo.
+- **Hotbar real e compacta**: ao entrar no editor, veja os mesmos nove espaços do jogador. `1–9` seleciona o item e `E` abre a tela vanilla do inventário Criativo (inclusive busca e todas as abas). Ao fechar, volta ao editor. O M1.2 **somente permite colocar os blocos da lista segura**, mesmo que outros apareçam no catálogo.
 - **Cursor de precisão**: direção calculada pelas matrizes de projeção do mundo, capturadas antes de entrar na interface, considerando superfícies reais, peças virtuais e o plano ativo.
 - **Grade branca de terreno** em torno do foco: cada célula acompanha a superfície carregada, apenas visualmente, sem modificar blocos/chunks. `G` mostra/oculta; não é um shader ou projeção de grade em faces verticais.
 - Vistas rápidas: `I` isométrica, `T` superior, `O` frontal, `P` lateral. `R/F` reservadas para rotação de blocos em M2.
@@ -34,13 +34,13 @@ Este pacote contém `.github/workflows/build.yml`. Crie um repositório **separa
 3. Baixa Gradle 4.9 verificando SHA-256;
 4. Compila com ForgeGradle 2.3 e Forge 1.12.2-14.23.5.2847;
 5. Confere a existência de `mcmod.info` e da classe principal no JAR;
-6. Se passar, publica o artefato `BuildCraft-Studio-M1.1-Forge1122`.
+6. Se passar, publica o artefato `BuildCraft-Studio-M1.2-Forge1122`.
 
 **Compile no GitHub Actions para conferir a API real do Forge.** Um build aprovado não substitui testes de cursor, grade e inventário dentro do jogo.
 
 ### Compilação local
 
-Requer **JDK 8 completo** e **Gradle 4.9** no `PATH`. Execute `BUILD.bat` e confira `BUILD_LOG.txt` em caso de erro. O JAR esperado é `build/libs/buildcraft-studio-forge1122-0.1.1.jar`. Não use JRE 8 sozinho.
+Requer **JDK 8 completo** e **Gradle 4.9** no `PATH`. Execute `BUILD.bat` e confira `BUILD_LOG.txt` em caso de erro. O JAR esperado é `build/libs/buildcraft-studio-forge1122-0.1.2.jar`. Não use JRE 8 sozinho.
 
 ## Teste funcional obrigatório antes de recomendar o mod
 
@@ -64,3 +64,14 @@ Requer **JDK 8 completo** e **Gradle 4.9** no `PATH`. Execute `BUILD.bat` e conf
 - [Forge 1.12.2 World JavaDocs](https://nekoyue.github.io/ForgeJavaDocs-NG/javadoc/1.12.2/net/minecraft/world/World.html)
 
 Veja `QA_REPORT.md`, `M1_SCOPE.md` e a especificação integral em `docs/`.
+
+
+## Controles e correções da v0.1.2
+- **WASD com menu aberto:** inicialmente move Steve; **Tab** alterna para câmera livre (WASD, espaço sobe, C desce).
+- **Mouse direito (clique curto):** remove bloco virtual apontado; **mouse direito arrastando:** orbita a câmera.
+- **Shift + esquerdo e Delete:** seleciona/remove bloco virtual. Ctrl+Z/Y desfaz/refaz.
+- **Prévia com modelos reais** dos blocos vanilla autorizados na M1, em lugar de cubos azuis.
+- **Autosave:** compactação e validação do arquivo temporário corrigidas para evitar SyncFailedException.
+- **Desempenho:** modelos e grade mantidos em cache. Texturas e FPS finais ainda precisam de teste no Minecraft.
+
+Veja `CHANGELOG_v0.1.2.md` e `QA_v0.1.2.md`.

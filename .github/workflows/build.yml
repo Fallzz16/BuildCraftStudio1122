@@ -37,18 +37,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s build/libs/buildcraft-studio-forge1122-0.1.1.jar
-          jar tf build/libs/buildcraft-studio-forge1122-0.1.1.jar > JAR_CONTENTS_CI.txt
+          test -s build/libs/buildcraft-studio-forge1122-0.1.2.jar
+          jar tf build/libs/buildcraft-studio-forge1122-0.1.2.jar > JAR_CONTENTS_CI.txt
           grep -Fxq 'mcmod.info' JAR_CONTENTS_CI.txt
           grep -Fxq 'dev/buildcraftstudio/BuildCraftStudio.class' JAR_CONTENTS_CI.txt
-          sha256sum build/libs/buildcraft-studio-forge1122-0.1.1.jar > JAR_SHA256.txt
+          sha256sum build/libs/buildcraft-studio-forge1122-0.1.2.jar > JAR_SHA256.txt
       - name: Upload JAR on successful build
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: BuildCraft-Studio-M1.1-Forge1122
+          name: BuildCraft-Studio-M1.2-Forge1122
           path: |
-            build/libs/buildcraft-studio-forge1122-0.1.1.jar
+            build/libs/buildcraft-studio-forge1122-0.1.2.jar
             JAR_SHA256.txt
       - name: Upload logs on failure
         if: failure()

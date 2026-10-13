@@ -62,6 +62,23 @@ public final class StudioPicking {
         return new Vec3d(v[0],v[1],v[2]);
     }
 
+    /** Select/remove a previously placed virtual block without the real terrain stealing the hit. */
+    public static BlockPos pickVirtual(Minecraft mc,StudioSession session,int mx,int my,int width,int height) {
+        if(width<=0 || height<=0 || mc.world==null)return null;
+        Vec3d start=new Vec3d(session.camera.posX,session.camera.posY,session.camera.posZ);
+        Vec3d end=start.add(ray(session,mc,mx,my,width,height).scale(128));
+        double nearest=Double.POSITIVE_INFINITY;
+        BlockPos result=null;
+        for(Map.Entry<BlockPos,IBlockState> entry:session.document.blocks().entrySet()) {
+            BlockPos worldPos=session.document.origin().add(entry.getKey());
+            RayTraceResult hit=new AxisAlignedBB(worldPos).calculateIntercept(start,end);
+            if(hit==null || hit.hitVec==null)continue;
+            double distance=start.squareDistanceTo(hit.hitVec);
+            if(distance<nearest) {nearest=distance;result=entry.getKey();}
+        }
+        return result;
+    }
+
     public static StudioPicking at(Minecraft mc,StudioSession s,int mx,int my,int width,int height) {
         if(width<=0 || height<=0 || mc.world==null) return new StudioPicking(null,null,false,"Sem área de renderização");
         Vec3d start=new Vec3d(s.camera.posX,s.camera.posY,s.camera.posZ);

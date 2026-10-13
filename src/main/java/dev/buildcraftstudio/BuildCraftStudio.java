@@ -10,7 +10,7 @@ import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
-@Mod(modid = BuildCraftStudio.MODID, name = "BuildCraft Studio", version = "0.1.1", acceptedMinecraftVersions = "[1.12.2]")
+@Mod(modid = BuildCraftStudio.MODID, name = "BuildCraft Studio", version = "0.1.2", acceptedMinecraftVersions = "[1.12.2]")
 public final class BuildCraftStudio {
     public static final String MODID = "buildcraftstudio";
     public static final SimpleNetworkWrapper NETWORK = NetworkRegistry.INSTANCE.newSimpleChannel(MODID);
