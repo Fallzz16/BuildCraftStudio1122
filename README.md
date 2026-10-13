@@ -1,6 +1,6 @@
 # BuildCraft Studio — M1 Building Foundation (v0.1.0)
 
-**Status: fonte experimental, não validada por compilação real ou execução em Minecraft.**
+**Status: compilação real com Forge 1.12.2 aprovada no GitHub Actions; execução dentro do Minecraft ainda pendente.**
 
 Projeto novo e independente do IsoCraft Camera e do mod de terror. Objetivo: **editor virtual de casas e estruturas** para Minecraft **Forge 1.12.2**, compilação com **JDK 8 + Gradle 4.9**. Sem veículos, motores ou física própria.
 
@@ -33,7 +33,7 @@ Este pacote contém `.github/workflows/build.yml`. Crie um repositório **separa
 5. Confere a existência de `mcmod.info` e da classe principal no JAR;
 6. Se passar, publica o artefato `BuildCraft-Studio-M1-Forge1122`.
 
-**Nenhum workflow foi executado nesta entrega.** A compilação verdadeira e os testes no jogo estão pendentes.
+**Build validado:** [GitHub Actions #2](https://github.com/Fallzz16/BuildCraftStudio1122/actions/runs/38330901527) — compilação Forge, testes e inspeção do JAR aprovados. [Baixar artefato com o JAR](https://github.com/Fallzz16/BuildCraftStudio1122/actions/runs/38330901527/artifacts/11782776706). SHA-256 do JAR: `696981731c7b2110fc4e0aa9e0488e10f3e60a4c666d6f7e15cda328e9a968e5`. **Testes de gameplay e estabilidade ainda pendentes.**
 
 ### Compilação local
 
