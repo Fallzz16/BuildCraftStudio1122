@@ -5,6 +5,7 @@ import dev.buildcraftstudio.core.EditorMath;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.util.MovementInput;
 import org.lwjgl.input.Keyboard;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
@@ -17,6 +18,7 @@ public final class StudioSession {
     public final StudioCameraEntity camera;
     public final Entity oldCamera;
     private final int oldThirdPerson;
+    private final MovementInput oldMovementInput;
     private final int startDimension;
     private float health;
     private int autosaveTicks;
@@ -34,6 +36,7 @@ public final class StudioSession {
         this.document = document;
         this.oldCamera = mc.getRenderViewEntity();
         this.oldThirdPerson = mc.gameSettings.thirdPersonView;
+        this.oldMovementInput = mc.player.movementInput;
         this.startDimension=mc.player.dimension;
         this.health=mc.player.getHealth();
         this.camera = new StudioCameraEntity(mc.world);
@@ -46,6 +49,13 @@ public final class StudioSession {
             throw new IllegalStateException("Área da câmera não carregada");
         }
         mc.setRenderViewEntity(camera);
+        mc.player.movementInput = new StudioMovementInput(mc);
+    }
+    /** ClientTick START: vanilla only updates player movement/network if player is the view entity. */
+    public static void beforeClientTick(Minecraft mc) {
+        StudioSession s=active;
+        if (s!=null && mc.player!=null && s.walkMode && mc.currentScreen instanceof StudioGui)
+            mc.setRenderViewEntity(mc.player);
     }
     public static StudioSession get() { return active; }
     public static void start(Minecraft mc) {
@@ -94,6 +104,8 @@ public final class StudioSession {
         s.health = mc.player.getHealth();
         s.handleMovement(mc);
         s.updateCamera(mc);
+        // ClientTick END: switch back to detached camera before the render phase.
+        if (mc.getRenderViewEntity()!=s.camera) mc.setRenderViewEntity(s.camera);
         if(++s.autosaveTicks>=200 && s.document.isDirty()) {
             if(!StudioStorage.save(mc,s.document)) s.notice="§cAutosave falhou: "+StudioStorage.lastError();
             s.autosaveTicks=0;
@@ -127,7 +139,7 @@ public final class StudioSession {
             syncKey(mc.gameSettings.keyBindJump,true);
             syncKey(mc.gameSettings.keyBindSneak,true);
             Vec3d follow=new Vec3d(mc.player.posX,mc.player.posY+1.0,mc.player.posZ);
-            changeFocus(mc,follow);
+            if (!changeFocus(mc,follow)) notice="Câmera no limite de alcance/chunks. Aproxime a visão.";
         } else {
             releaseMovementKeys(mc);
             double forwards=(Keyboard.isKeyDown(Keyboard.KEY_W)?1:0)-(Keyboard.isKeyDown(Keyboard.KEY_S)?1:0);
@@ -137,7 +149,8 @@ public final class StudioSession {
                 double angle=Math.toRadians(yaw),speed=Keyboard.isKeyDown(Keyboard.KEY_LSHIFT)?.65:.28;
                 Vec3d forward=new Vec3d(-Math.sin(angle),0,Math.cos(angle));
                 Vec3d right=new Vec3d(Math.cos(angle),0,Math.sin(angle));
-                changeFocus(mc,focus.add(forward.scale(forwards*speed)).add(right.scale(sides*speed)).add(new Vec3d(0,rise*speed,0)));
+                if (!changeFocus(mc,focus.add(forward.scale(forwards*speed)).add(right.scale(sides*speed)).add(new Vec3d(0,rise*speed,0))))
+                    notice="Movimento bloqueado: alcance ou chunk indisponível";
             }
         }
     }
@@ -155,7 +168,7 @@ public final class StudioSession {
     }
     public boolean changeFocus(Minecraft mc, Vec3d candidate) {
         if (mc.world==null || mc.player==null) return false;
-        if(mc.player.getDistanceSq(candidate.x,candidate.y,candidate.z) > 48*48 || !mc.world.isBlockLoaded(new BlockPos(candidate))) return false;
+        if(mc.player.getDistanceSq(candidate.x,candidate.y,candidate.z) > 64*64 || !mc.world.isBlockLoaded(new BlockPos(candidate))) return false;
         Vec3d before=focus;focus=candidate;
         if(!updateCamera(mc)) { focus=before;return false; }
         return true;
@@ -164,6 +177,7 @@ public final class StudioSession {
         StudioSession s=active;
         if(s==null)return;
         s.releaseMovementKeys(mc);
+        if (mc.player != null) mc.player.movementInput = s.oldMovementInput;
         if(mc.player!=null && mc.getIntegratedServer()!=null && s.document.isDirty() && !StudioStorage.save(mc,s.document)) {
             mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("§cBuildCraft: falha ao salvar! Verifique espaço/permissões na pasta do jogo."));
         }

@@ -26,21 +26,37 @@ public final class StudioPicking {
     private static final IntBuffer VIEWPORT=BufferUtils.createIntBuffer(16);
     private static boolean captured;
     private static StudioSession capturedSession;
+    private static double capturedX=Double.NaN,capturedY=Double.NaN,capturedZ=Double.NaN;
+    private static float capturedYaw=Float.NaN,capturedPitch=Float.NaN;
+    private static int captureWidth=-1,captureHeight=-1;
+    private static int framesSinceCapture;
+    private static long matrixRevision;
+    public static long matrixRevision() { return matrixRevision; }
 
     private StudioPicking(BlockPos local,BlockPos existing,boolean valid,String reason) {
         this.local=local;this.hitExisting=existing;this.valid=valid;this.reason=reason;
     }
 
     public static void capture(StudioSession session) {
-        // RenderWorldLastEvent happens while the 3D matrices are active, before GuiScreen's 2D projection.
+        // glGet* synchronizes CPU/GPU. Skip redundant reads for an unchanged camera.
+        Minecraft mc=Minecraft.getMinecraft();
+        if (captured && capturedSession==session && ++framesSinceCapture < 40
+            && session.camera.posX==capturedX && session.camera.posY==capturedY && session.camera.posZ==capturedZ
+            && session.camera.rotationYaw==capturedYaw && session.camera.rotationPitch==capturedPitch
+            && mc.displayWidth==captureWidth && mc.displayHeight==captureHeight) return;
+        framesSinceCapture=0;
+        capturedX=session.camera.posX;capturedY=session.camera.posY;capturedZ=session.camera.posZ;
+        capturedYaw=session.camera.rotationYaw;capturedPitch=session.camera.rotationPitch;
+        captureWidth=mc.displayWidth;captureHeight=mc.displayHeight;
         MODEL.clear(); PROJECTION.clear(); VIEWPORT.clear();
         GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX,MODEL);
         GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX,PROJECTION);
         GL11.glGetInteger(GL11.GL_VIEWPORT,VIEWPORT);
         captured=VIEWPORT.get(2)>0 && VIEWPORT.get(3)>0;
         capturedSession=session;
+        matrixRevision++;
     }
-    public static void reset() {captured=false;capturedSession=null;}
+    public static void reset() {captured=false;capturedSession=null;framesSinceCapture=0;}
 
     private static Vec3d ray(StudioSession s,Minecraft mc,int mx,int my,int width,int height) {
         if(captured && capturedSession==s) {

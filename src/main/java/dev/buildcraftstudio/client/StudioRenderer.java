@@ -18,7 +18,7 @@ public final class StudioRenderer {
     private static long cachedRevision=-1;
     private static BufferBuilder.State cachedModel;
     private static boolean hasModel;
-    private static final int GRID_RADIUS=9;
+    private static final int GRID_RADIUS=6;
     private static final int GRID_WIDTH=GRID_RADIUS*2+1;
     private static final int[] gridHeight=new int[GRID_WIDTH*GRID_WIDTH];
     private static int gridX=Integer.MIN_VALUE,gridZ=Integer.MIN_VALUE,gridDimension=Integer.MIN_VALUE;
