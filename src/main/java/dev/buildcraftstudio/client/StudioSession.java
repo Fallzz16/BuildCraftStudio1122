@@ -4,6 +4,8 @@ import dev.buildcraftstudio.core.BuildDocument;
 import dev.buildcraftstudio.core.EditorMath;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
+import net.minecraft.client.settings.KeyBinding;
+import org.lwjgl.input.Keyboard;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
@@ -23,6 +25,8 @@ public final class StudioSession {
     public int planeOffset=0;
     public int slot=0;
     public boolean showGrid=true;
+    // WASD can drive Steve while the editor HUD remains open, or move the detached camera.
+    public boolean walkMode=true;
     public boolean inventoryOpen=false;
     public String notice="Clique para colocar • Direito: orbitar • Meio: deslocar";
 
@@ -76,6 +80,7 @@ public final class StudioSession {
             return;
         }
         if(s.inventoryOpen && mc.currentScreen instanceof net.minecraft.client.gui.inventory.GuiContainerCreative) {
+            s.releaseMovementKeys(mc);
             s.updateCamera(mc);
         } else if(!(mc.currentScreen instanceof StudioGui)) {
             stop(mc);return;
@@ -87,12 +92,56 @@ public final class StudioSession {
             return;
         }
         s.health = mc.player.getHealth();
+        s.handleMovement(mc);
         s.updateCamera(mc);
         if(++s.autosaveTicks>=200 && s.document.isDirty()) {
             if(!StudioStorage.save(mc,s.document)) s.notice="§cAutosave falhou: "+StudioStorage.lastError();
             s.autosaveTicks=0;
         }
     }
+    private static boolean held(KeyBinding key) {
+        int code=key.getKeyCode();
+        return code>=0 && code<Keyboard.KEYBOARD_SIZE && Keyboard.isKeyDown(code);
+    }
+    private static void syncKey(KeyBinding key,boolean enabled) {
+        if(key.getKeyCode()>=0)KeyBinding.setKeyBindState(key.getKeyCode(),enabled && held(key));
+    }
+    public void releaseMovementKeys(Minecraft mc) {
+        if(mc==null)return;
+        syncKey(mc.gameSettings.keyBindForward,false);
+        syncKey(mc.gameSettings.keyBindBack,false);
+        syncKey(mc.gameSettings.keyBindLeft,false);
+        syncKey(mc.gameSettings.keyBindRight,false);
+        syncKey(mc.gameSettings.keyBindJump,false);
+        syncKey(mc.gameSettings.keyBindSneak,false);
+    }
+    private void handleMovement(Minecraft mc) {
+        if(mc.player==null || !(mc.currentScreen instanceof StudioGui)) {releaseMovementKeys(mc);return;}
+        if(walkMode) {
+            // GuiScreen normally consumes gameplay keys. Keep vanilla player movement
+            // and collisions active by forwarding physical WASD to existing keybindings.
+            syncKey(mc.gameSettings.keyBindForward,true);
+            syncKey(mc.gameSettings.keyBindBack,true);
+            syncKey(mc.gameSettings.keyBindLeft,true);
+            syncKey(mc.gameSettings.keyBindRight,true);
+            syncKey(mc.gameSettings.keyBindJump,true);
+            syncKey(mc.gameSettings.keyBindSneak,true);
+            Vec3d follow=new Vec3d(mc.player.posX,mc.player.posY+1.0,mc.player.posZ);
+            changeFocus(mc,follow);
+        } else {
+            releaseMovementKeys(mc);
+            double forwards=(Keyboard.isKeyDown(Keyboard.KEY_W)?1:0)-(Keyboard.isKeyDown(Keyboard.KEY_S)?1:0);
+            double sides=(Keyboard.isKeyDown(Keyboard.KEY_D)?1:0)-(Keyboard.isKeyDown(Keyboard.KEY_A)?1:0);
+            double rise=(Keyboard.isKeyDown(Keyboard.KEY_SPACE)?1:0)-(Keyboard.isKeyDown(Keyboard.KEY_C)?1:0);
+            if(forwards!=0 || sides!=0 || rise!=0) {
+                double angle=Math.toRadians(yaw),speed=Keyboard.isKeyDown(Keyboard.KEY_LSHIFT)?.65:.28;
+                Vec3d forward=new Vec3d(-Math.sin(angle),0,Math.cos(angle));
+                Vec3d right=new Vec3d(Math.cos(angle),0,Math.sin(angle));
+                changeFocus(mc,focus.add(forward.scale(forwards*speed)).add(right.scale(sides*speed)).add(new Vec3d(0,rise*speed,0)));
+            }
+        }
+    }
+
     public boolean updateCamera(Minecraft mc) {
         double[] f=EditorMath.forward(yaw,pitch);
         Vec3d pos=focus.subtract(f[0]*distance,f[1]*distance,f[2]*distance);
@@ -114,11 +163,13 @@ public final class StudioSession {
     public static void stop(Minecraft mc) {
         StudioSession s=active;
         if(s==null)return;
-        if(mc.player!=null && mc.getIntegratedServer()!=null && !StudioStorage.save(mc,s.document)) {
+        s.releaseMovementKeys(mc);
+        if(mc.player!=null && mc.getIntegratedServer()!=null && s.document.isDirty() && !StudioStorage.save(mc,s.document)) {
             mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("§cBuildCraft: falha ao salvar! Verifique espaço/permissões na pasta do jogo."));
         }
         s.inventoryOpen=false;
         StudioPicking.reset();
+        StudioRenderer.reset();
         if(mc.getRenderViewEntity()==s.camera) mc.setRenderViewEntity(mc.player!=null?mc.player:s.oldCamera);
         mc.gameSettings.thirdPersonView=s.oldThirdPerson;
         active=null;

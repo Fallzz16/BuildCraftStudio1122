@@ -26,10 +26,13 @@ public final class StudioGui extends GuiScreen {
     private boolean confirming;
     private int revision,confirmedRevision=-1;
     private int mouseXNow,mouseYNow;
+    private int rightStartX,rightStartY;
+    private boolean rightDrag;
     private StudioPicking hover;
     private BlockPos selected;
     public StudioGui(StudioSession s) { this.s=s; }
     public BlockPos getSelected() {return selected;}
+    public StudioPicking getHover() {return hover;}
     public int getHoverX() {return mouseXNow;}
     public int getHoverY() {return mouseYNow;}
     public IBlockState currentBlock() {
@@ -48,8 +51,8 @@ public final class StudioGui extends GuiScreen {
     @Override public void drawScreen(int mx,int my,float partial) {
         mouseXNow=mx;mouseYNow=my;
         hover=StudioPicking.at(mc,s,mx,my,width,height);
-        drawRect(4,4,146,22,0xA5101C23);
-        fontRenderer.drawStringWithShadow("BUILDCRAFT  |  M1.1",9,9,0xF4F6F8);
+        drawRect(4,4,191,22,0xA5101C23);
+        fontRenderer.drawStringWithShadow("BUILDCRAFT | M1.2 | " +(s.walkMode?"STEVE":"CAMERA"),9,9,0xF4F6F8);
         drawRect(width-91,4,width-5,22,confirming?0xD0A04D16:0xCC287359);
         drawCenteredString(fontRenderer,confirming?"CONFIRMAR":"FINALIZAR",width-48,9,0xFFFFFF);
         drawRect(width-149,4,width-95,22,0xCC283845);
@@ -72,7 +75,7 @@ public final class StudioGui extends GuiScreen {
         String trimmed=fontRenderer.trimStringToWidth(status,width-20);
         drawRect(4,26,Math.min(width-4,12+fontRenderer.getStringWidth(trimmed)),40,0xB0182731);
         fontRenderer.drawStringWithShadow(trimmed,8,29,0xEDF1F3);
-        String tips="RMB: orbitar | MMB: mover | scroll: zoom | Shift+scroll: altura | E: inventário | G: grade | B: sair";
+        String tips="WASD: mover "+(s.walkMode?"Steve":"camera")+" | Tab: alternar | RMB arrastar: orbitar | RMB clique: apagar | E: itens | G: grade | B: sair";
         String fitted=fontRenderer.trimStringToWidth(tips,width-16);
         fontRenderer.drawStringWithShadow(fitted,8,height-42,0xE7EDEF);
         if(hover!=null && hover.local!=null) {
@@ -97,6 +100,7 @@ public final class StudioGui extends GuiScreen {
     }
     @Override protected void mouseClicked(int mx,int my,int button) throws IOException {
         lastMouseX=mx;lastMouseY=my;
+        if(button==1) {rightStartX=mx;rightStartY=my;rightDrag=false;return;}
         if(button!=0)return;
         if(my>=4 && my<23 && mx>=width-91) {finish();return;}
         if(my>=4 && my<23 && mx>=width-149 && mx<width-94) {openCreative();return;}
@@ -108,8 +112,9 @@ public final class StudioGui extends GuiScreen {
         if(my<60 || my>height-47)return;
         StudioPicking hit=StudioPicking.at(mc,s,mx,my,width,height);
         if(GuiScreen.isShiftKeyDown()) {
-            if(hit.hitExisting!=null && s.document.blocks().containsKey(hit.hitExisting)) {
-                selected=hit.hitExisting;s.notice="Bloco selecionado: Delete para remover";
+            BlockPos virtual=StudioPicking.pickVirtual(mc,s,mx,my,width,height);
+            if(virtual!=null && s.document.blocks().containsKey(virtual)) {
+                selected=virtual;s.notice="Bloco selecionado: Delete para remover";
             } else s.notice="Nenhum bloco virtual sob o cursor";
         } else {
             if(!hit.valid) {s.notice=hit.reason;return;}
@@ -124,6 +129,8 @@ public final class StudioGui extends GuiScreen {
         if(lastMouseX<0) {lastMouseX=mx;lastMouseY=my;return;}
         int dx=mx-lastMouseX,dy=my-lastMouseY;lastMouseX=mx;lastMouseY=my;
         if(button==1) {
+            if(Math.abs(mx-rightStartX)>3 || Math.abs(my-rightStartY)>3)rightDrag=true;
+            if(!rightDrag)return;
             double beforeYaw=s.yaw,beforePitch=s.pitch;
             s.yaw=(s.yaw+dx*.42)%360;
             s.pitch=EditorMath.clamp(s.pitch+dy*.33,-85,85);
@@ -136,7 +143,15 @@ public final class StudioGui extends GuiScreen {
             s.changeFocus(mc,s.focus.subtract(right.scale(dx*scale)).add(up.scale(dy*scale)));
         }
     }
-    @Override protected void mouseReleased(int mx,int my,int button) {lastMouseX=-1;lastMouseY=-1;}
+    @Override protected void mouseReleased(int mx,int my,int button) {
+        if(button==1 && !rightDrag && my>=60 && my<=height-47) {
+            BlockPos virtual=StudioPicking.pickVirtual(mc,s,mx,my,width,height);
+            if(virtual!=null && s.document.edit(virtual,null)) {
+                selected=null;s.notice="Bloco removido";changed();
+            } else s.notice="Não há bloco virtual sob o cursor";
+        }
+        lastMouseX=-1;lastMouseY=-1;
+    }
     @Override public void handleMouseInput() throws IOException {
         super.handleMouseInput();
         int wheel=Mouse.getEventDWheel();
@@ -151,6 +166,7 @@ public final class StudioGui extends GuiScreen {
     @Override protected void keyTyped(char ch,int key) throws IOException {
         if(key==Keyboard.KEY_ESCAPE || key==Keyboard.KEY_B) {mc.displayGuiScreen(null);return;}
         if(key==Keyboard.KEY_E) {openCreative();return;}
+        if(key==Keyboard.KEY_TAB) {s.walkMode=!s.walkMode;s.notice=s.walkMode?"WASD move Steve, menu continua aberto":"WASD move a câmera livremente";s.releaseMovementKeys(mc);return;}
         if(key==Keyboard.KEY_G) {s.showGrid=!s.showGrid;s.notice=s.showGrid?"Grade visível":"Grade oculta";return;}
         if(key==Keyboard.KEY_PRIOR) s.planeOffset=Math.min(31,s.planeOffset+1);
         else if(key==Keyboard.KEY_NEXT) s.planeOffset=Math.max(-32,s.planeOffset-1);
