@@ -32,6 +32,7 @@ public final class StudioGui extends GuiScreen {
     private BlockPos selected;
     public StudioGui(StudioSession s) { this.s=s; }
     public BlockPos getSelected() {return selected;}
+    public StudioPicking getHover() {return hover;}
     public int getHoverX() {return mouseXNow;}
     public int getHoverY() {return mouseYNow;}
     public IBlockState currentBlock() {
