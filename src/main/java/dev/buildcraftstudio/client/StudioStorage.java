@@ -25,7 +25,7 @@ public final class StudioStorage {
     private static File file(Minecraft mc) {
         String world = mc.getIntegratedServer() == null ? "not_singleplayer" : mc.getIntegratedServer().getFolderName();
         world = world.replaceAll("[^a-zA-Z0-9_.-]", "_");
-        return new File(new File(mc.mcDataDir,"buildcraftstudio/projects"), world + "_dim" + mc.player.dimension + ".dat");
+        return new File(new File(net.minecraftforge.fml.common.Loader.instance().getConfigDir().getParentFile(),"buildcraftstudio/projects"), world + "_dim" + mc.player.dimension + ".dat");
     }
     public static BuildDocument load(Minecraft mc, BlockPos fallback) {
         File main = file(mc);
