@@ -33,10 +33,10 @@ if errorlevel 1 (
   exit /b 1
 )
 echo BUILD SUCCESSFUL
-if not exist "build\libs\buildcraft-studio-forge1122-0.1.0.jar" (
+if not exist "build\libs\buildcraft-studio-forge1122-0.1.1.jar" (
   echo ERRO: JAR esperado nao encontrado!
   pause
   exit /b 1
 )
-echo Resultado: build\libs\buildcraft-studio-forge1122-0.1.0.jar
+echo Resultado: build\libs\buildcraft-studio-forge1122-0.1.1.jar
 pause

@@ -22,6 +22,8 @@ public final class StudioSession {
     public Vec3d focus;
     public int planeOffset=0;
     public int slot=0;
+    public boolean showGrid=true;
+    public boolean inventoryOpen=false;
     public String notice="Clique para colocar • Direito: orbitar • Meio: deslocar";
 
     private StudioSession(Minecraft mc, BuildDocument document) {
@@ -65,10 +67,19 @@ public final class StudioSession {
     public static void tick(Minecraft mc) {
         if(active==null) return;
         StudioSession s=active;
-        if(mc.player==null || mc.world==null || mc.player.dimension != s.startDimension || mc.player.isDead || mc.currentScreen!=null && !(mc.currentScreen instanceof StudioGui)) {
+        if(mc.player==null || mc.world==null || mc.player.dimension != s.startDimension || mc.player.isDead) {
             stop(mc); return;
         }
-        if(mc.currentScreen==null) { stop(mc);return; }
+        if(s.inventoryOpen && mc.currentScreen==null) {
+            s.inventoryOpen=false;
+            mc.displayGuiScreen(new StudioGui(s));
+            return;
+        }
+        if(s.inventoryOpen && mc.currentScreen instanceof net.minecraft.client.gui.inventory.GuiContainerCreative) {
+            s.updateCamera(mc);
+        } else if(!(mc.currentScreen instanceof StudioGui)) {
+            stop(mc);return;
+        }
         if(mc.player.getHealth() < s.health) {
             s.notice="Dano recebido: salvando projeto e saindo";
             stop(mc);
@@ -78,7 +89,7 @@ public final class StudioSession {
         s.health = mc.player.getHealth();
         s.updateCamera(mc);
         if(++s.autosaveTicks>=200 && s.document.isDirty()) {
-            if(!StudioStorage.save(mc,s.document)) s.notice="§cFalha no autosave! Saia apenas após recuperar espaço em disco.";
+            if(!StudioStorage.save(mc,s.document)) s.notice="§cAutosave falhou: "+StudioStorage.lastError();
             s.autosaveTicks=0;
         }
     }
@@ -106,6 +117,8 @@ public final class StudioSession {
         if(mc.player!=null && mc.getIntegratedServer()!=null && !StudioStorage.save(mc,s.document)) {
             mc.player.sendMessage(new net.minecraft.util.text.TextComponentString("§cBuildCraft: falha ao salvar! Verifique espaço/permissões na pasta do jogo."));
         }
+        s.inventoryOpen=false;
+        StudioPicking.reset();
         if(mc.getRenderViewEntity()==s.camera) mc.setRenderViewEntity(mc.player!=null?mc.player:s.oldCamera);
         mc.gameSettings.thirdPersonView=s.oldThirdPerson;
         active=null;
