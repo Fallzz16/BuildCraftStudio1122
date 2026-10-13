@@ -1,0 +1,13 @@
+[
+  {
+    "modid": "buildcraftstudio",
+    "name": "BuildCraft Studio",
+    "description": "Editor virtual de arquitetura para Minecraft 1.12.2 (M1 experimental)",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "authorList": ["BuildCraft Studio"],
+    "credits": "Conceito e especificacao do usuario",
+    "dependencies": []
+  }
+]
